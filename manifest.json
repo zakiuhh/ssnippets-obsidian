@@ -1,0 +1,10 @@
+{
+	"id": "ssnippets",
+	"name": "Smart Snippets",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Type shortcuts like /meeting or /todo and expand them into formatted templates with variables. Create custom snippets for any workflow.",
+	"author": "Zaki Ul Hassan",
+	"authorUrl": "https://github.com/zakiuhh",
+	"isDesktopOnly": false
+}
