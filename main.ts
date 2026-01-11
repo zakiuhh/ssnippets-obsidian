@@ -31,10 +31,10 @@ const DEFAULT_SETTINGS: SmartSnippetsSettings = {
 **Discussion:**
 
 
-**Action Items:**
+**Action items:**
 - [ ] 
 
-**Next Steps:**
+**Next steps:**
 `
 		},
 		{
@@ -80,7 +80,7 @@ const DEFAULT_SETTINGS: SmartSnippetsSettings = {
 			description: 'Daily log template',
 			template: `# Daily Log - {{date}}
 
-## 🎯 Goals for Today
+## 🎯 Goals for today
 - [ ] 
 - [ ] 
 - [ ] 
@@ -97,9 +97,9 @@ const DEFAULT_SETTINGS: SmartSnippetsSettings = {
 		{
 			trigger: 'project',
 			description: 'Project outline template',
-			template: `# Project: 
+			template: `# Project
 
-**Status:** 🟡 In Progress
+**Status:** 🟡 In progress
 **Started:** {{date}}
 **Deadline:** 
 
@@ -135,7 +135,7 @@ const DEFAULT_SETTINGS: SmartSnippetsSettings = {
 			template: '```\n\n```'
 		}
 	]
-}
+};
 
 export default class SmartSnippetsPlugin extends Plugin {
 	settings: SmartSnippetsSettings;
@@ -143,10 +143,8 @@ export default class SmartSnippetsPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// Register event for snippet expansion
 		this.registerEditorExtension(this.createSnippetExtension());
 
-		// Add command to show all snippets
 		this.addCommand({
 			id: 'show-all-snippets',
 			name: 'Show all available snippets',
@@ -155,14 +153,13 @@ export default class SmartSnippetsPlugin extends Plugin {
 			}
 		});
 
-		// Add settings tab
 		this.addSettingTab(new SmartSnippetsSettingTab(this.app, this));
 
-		console.debug('Smart Snippets plugin loaded');
+		console.debug('Smart Snippets loaded');
 	}
 
 	onunload() {
-		console.debug('Smart Snippets plugin unloaded');
+		console.debug('Smart Snippets unloaded');
 	}
 
 	async loadSettings() {
@@ -177,15 +174,14 @@ export default class SmartSnippetsPlugin extends Plugin {
 		const snippetList = this.settings.snippets
 			.map(s => `${this.settings.triggerKey}${s.trigger} - ${s.description}`)
 			.join('\n');
-		
-		new Notice(`Available Snippets:\n\n${snippetList}`, 10000);
+
+		new Notice(`Available snippets:\n\n${snippetList}`, 10000);
 	}
 
 	expandSnippet(template: string): string {
 		const now = new Date();
-		
-		// Replace variables
-		let expanded = template
+
+		return template
 			.replace(/{{date}}/g, now.toISOString().split('T')[0])
 			.replace(/{{time}}/g, now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))
 			.replace(/{{datetime}}/g, now.toLocaleString())
@@ -193,44 +189,38 @@ export default class SmartSnippetsPlugin extends Plugin {
 			.replace(/{{year}}/g, now.getFullYear().toString())
 			.replace(/{{month}}/g, (now.getMonth() + 1).toString().padStart(2, '0'))
 			.replace(/{{day}}/g, now.getDate().toString().padStart(2, '0'));
-		
-		return expanded;
 	}
 
 	createSnippetExtension() {
 		return EditorView.domEventHandlers({
 			keydown: (event, view) => {
-				// Check if space is pressed
 				if (event.key === ' ') {
 					const selection = view.state.selection.main;
 					const line = view.state.doc.lineAt(selection.head);
 					const textBeforeCursor = line.text.slice(0, selection.head - line.from);
-					
-					// Check if text before cursor matches a snippet trigger
+
 					for (const snippet of this.settings.snippets) {
 						const trigger = this.settings.triggerKey + snippet.trigger;
-						
+
 						if (textBeforeCursor.endsWith(trigger)) {
 							event.preventDefault();
-							
-							// Calculate positions
+
 							const from = selection.head - trigger.length;
 							const to = selection.head;
-							
-							// Expand template
-							const expanded = this.expandSnippet(snippet.template);
-							
-							// Replace trigger with expanded template
+
 							view.dispatch({
-								changes: { from, to, insert: expanded }
+								changes: {
+									from,
+									to,
+									insert: this.expandSnippet(snippet.template)
+								}
 							});
-							
+
 							new Notice(`✨ Expanded: ${snippet.trigger}`);
 							return true;
 						}
 					}
 				}
-				
 				return false;
 			}
 		});
@@ -250,98 +240,92 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Smart Snippets settings')
+			.setName('General')
 			.setHeading();
 
-		// Trigger key setting
 		new Setting(containerEl)
 			.setName('Trigger character')
-			.setDesc('Character to start snippet triggers (default: /)')
-			.addText(text => text
-				.setPlaceholder('/')
-				.setValue(this.plugin.settings.triggerKey)
-				.onChange(async (value) => {
-					this.plugin.settings.triggerKey = value || '/';
-					await this.plugin.saveSettings();
-				}));
+			.setDesc('Character used to start snippet triggers (default: /)')
+			.addText(text =>
+				text
+					.setPlaceholder('/')
+					.setValue(this.plugin.settings.triggerKey)
+					.onChange(async value => {
+						this.plugin.settings.triggerKey = value || '/';
+						await this.plugin.saveSettings();
+					})
+			);
 
-		// Show available variables
 		new Setting(containerEl)
 			.setName('Available variables')
 			.setHeading();
-		
-		new Setting(containerEl)
-			.setName('Date and time variables')
-			.setDesc('{{date}} - Current date (YYYY-MM-DD) • {{time}} - Current time (HH:MM AM/PM) • {{datetime}} - Full date and time • {{timestamp}} - Unix timestamp • {{year}} - Current year • {{month}} - Current month (01-12) • {{day}} - Current day (01-31)');
 
-		// Default snippets section
+		new Setting(containerEl)
+			.setDesc('{{date}}, {{time}}, {{datetime}}, {{timestamp}}, {{year}}, {{month}}, {{day}}');
+
 		new Setting(containerEl)
 			.setName('Built-in snippets')
 			.setHeading();
-		
+
 		new Setting(containerEl)
 			.setDesc('These snippets are included by default. You can modify or delete them.');
 
-		// Display all snippets
 		this.plugin.settings.snippets.forEach((snippet, index) => {
-			const snippetContainer = containerEl.createDiv({ cls: 'snippet-item-container' });
+			const snippetContainer = containerEl.createDiv();
 
-			// Snippet header with trigger and description
 			new Setting(snippetContainer)
 				.setName(`${this.plugin.settings.triggerKey}${snippet.trigger}`)
 				.setDesc(snippet.description)
-				.addButton(button => button
-					.setButtonText('Delete')
-					.setWarning()
-					.onClick(async () => {
-						this.plugin.settings.snippets.splice(index, 1);
-						await this.plugin.saveSettings();
-						this.display();
-					}));
+				.addButton(button =>
+					button
+						.setButtonText('Delete')
+						.setWarning()
+						.onClick(async () => {
+							this.plugin.settings.snippets.splice(index, 1);
+							await this.plugin.saveSettings();
+							this.display();
+						})
+				);
 
-			// Edit trigger
 			new Setting(snippetContainer)
 				.setName('Trigger')
-				.setDesc('The shortcut to type (without the trigger character)')
-				.addText(text => text
-					.setPlaceholder('trigger')
-					.setValue(snippet.trigger)
-					.onChange(async (value) => {
-						this.plugin.settings.snippets[index].trigger = value;
-						await this.plugin.saveSettings();
-					}));
+				.setDesc('Shortcut without the trigger character')
+				.addText(text =>
+					text
+						.setValue(snippet.trigger)
+						.onChange(async value => {
+							snippet.trigger = value;
+							await this.plugin.saveSettings();
+						})
+				);
 
-			// Edit description
 			new Setting(snippetContainer)
 				.setName('Description')
 				.setDesc('What this snippet does')
-				.addText(text => text
-					.setPlaceholder('Description')
-					.setValue(snippet.description)
-					.onChange(async (value) => {
-						this.plugin.settings.snippets[index].description = value;
-						await this.plugin.saveSettings();
-					}));
+				.addText(text =>
+					text
+						.setValue(snippet.description)
+						.onChange(async value => {
+							snippet.description = value;
+							await this.plugin.saveSettings();
+						})
+				);
 
-			// Edit template
 			new Setting(snippetContainer)
 				.setName('Template')
-				.setDesc('The text that will be inserted')
+				.setDesc('Text that will be inserted')
 				.addTextArea(text => {
 					text
-						.setPlaceholder('Template text...')
 						.setValue(snippet.template)
-						.onChange(async (value) => {
-							this.plugin.settings.snippets[index].template = value;
+						.onChange(async value => {
+							snippet.template = value;
 							await this.plugin.saveSettings();
 						});
 					text.inputEl.rows = 8;
-					text.inputEl.addClass('snippet-template-textarea');
 					return text;
 				});
 		});
 
-		// Add new snippet section
 		new Setting(containerEl)
 			.setName('Add new snippet')
 			.setHeading();
@@ -351,71 +335,44 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 		let newTemplate = '';
 
 		new Setting(containerEl)
-			.setName('New trigger')
-			.setDesc('Shortcut to type (e.g., "quote", "link", "header")')
-			.addText(text => text
-				.setPlaceholder('trigger')
-				.onChange(value => {
-					newTrigger = value;
-				}));
+			.setName('Trigger')
+			.setDesc('Shortcut to type')
+			.addText(text => text.onChange(value => (newTrigger = value)));
 
 		new Setting(containerEl)
-			.setName('New description')
+			.setName('Description')
 			.setDesc('What this snippet does')
-			.addText(text => text
-				.setPlaceholder('Description')
-				.onChange(value => {
-					newDescription = value;
-				}));
+			.addText(text => text.onChange(value => (newDescription = value)));
 
 		new Setting(containerEl)
-			.setName('New template')
-			.setDesc('The text that will be inserted')
+			.setName('Template')
+			.setDesc('Text that will be inserted')
 			.addTextArea(text => {
-				text
-					.setPlaceholder('Template text...\nUse {{date}}, {{time}}, etc.')
-					.onChange(value => {
-						newTemplate = value;
-					});
+				text.onChange(value => (newTemplate = value));
 				text.inputEl.rows = 8;
-				text.inputEl.addClass('snippet-template-textarea');
 				return text;
 			});
 
-		new Setting(containerEl)
-			.addButton(button => button
-				.setButtonText('Add Snippet')
+		new Setting(containerEl).addButton(button =>
+			button
+				.setButtonText('Add snippet')
 				.setCta()
 				.onClick(async () => {
-					if (newTrigger && newTemplate) {
-						this.plugin.settings.snippets.push({
-							trigger: newTrigger,
-							description: newDescription || 'Custom snippet',
-							template: newTemplate
-						});
-						await this.plugin.saveSettings();
-						new Notice('✅ Snippet added!');
-						this.display();
-					} else {
-						new Notice('❌ Please fill in at least trigger and template');
+					if (!newTrigger || !newTemplate) {
+						new Notice('❌ Please fill in at least a trigger and a template');
+						return;
 					}
-				}));
 
-		// Usage instructions
-		new Setting(containerEl)
-			.setName('How to use')
-			.setHeading();
-		
-		new Setting(containerEl)
-			.setName('Using snippets')
-			.setDesc('1. Type the trigger character (default: /) • 2. Type the snippet name (e.g., meeting) • 3. Press Space • 4. The snippet expands into the template!');
-		
-		new Setting(containerEl)
-			.setName('Example')
-			.setDesc('Type /meeting and press Space → Full meeting template appears!');
-		
-		new Setting(containerEl)
-			.setName('Tips')
-			.setDesc('Use variables like {{date}} for dynamic content • Create snippets for frequently used formats • Combine with templates for powerful workflows');
+					this.plugin.settings.snippets.push({
+						trigger: newTrigger,
+						description: newDescription || 'Custom snippet',
+						template: newTemplate
+					});
+
+					await this.plugin.saveSettings();
+					new Notice('✅ Snippet added');
+					this.display();
+				})
+		);
 	}
 }
