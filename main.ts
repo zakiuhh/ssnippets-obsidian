@@ -1,6 +1,5 @@
-import { App, Editor, MarkdownView, Plugin, PluginSettingTab, Setting, Notice } from 'obsidian';
-import { EditorView, ViewPlugin, ViewUpdate, Decoration, DecorationSet } from '@codemirror/view';
-import { EditorState, StateField, StateEffect } from '@codemirror/state';
+import { App, Plugin, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { EditorView } from '@codemirror/view';
 
 interface Snippet {
 	trigger: string;
@@ -159,11 +158,11 @@ export default class SmartSnippetsPlugin extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new SmartSnippetsSettingTab(this.app, this));
 
-		console.log('Smart Snippets plugin loaded');
+		console.debug('Smart Snippets plugin loaded');
 	}
 
 	onunload() {
-		console.log('Smart Snippets plugin unloaded');
+		console.debug('Smart Snippets plugin unloaded');
 	}
 
 	async loadSettings() {
@@ -199,10 +198,8 @@ export default class SmartSnippetsPlugin extends Plugin {
 	}
 
 	createSnippetExtension() {
-		const plugin = this;
-		
 		return EditorView.domEventHandlers({
-			keydown(event, view) {
+			keydown: (event, view) => {
 				// Check if space is pressed
 				if (event.key === ' ') {
 					const selection = view.state.selection.main;
@@ -210,8 +207,8 @@ export default class SmartSnippetsPlugin extends Plugin {
 					const textBeforeCursor = line.text.slice(0, selection.head - line.from);
 					
 					// Check if text before cursor matches a snippet trigger
-					for (const snippet of plugin.settings.snippets) {
-						const trigger = plugin.settings.triggerKey + snippet.trigger;
+					for (const snippet of this.settings.snippets) {
+						const trigger = this.settings.triggerKey + snippet.trigger;
 						
 						if (textBeforeCursor.endsWith(trigger)) {
 							event.preventDefault();
@@ -221,7 +218,7 @@ export default class SmartSnippetsPlugin extends Plugin {
 							const to = selection.head;
 							
 							// Expand template
-							const expanded = plugin.expandSnippet(snippet.template);
+							const expanded = this.expandSnippet(snippet.template);
 							
 							// Replace trigger with expanded template
 							view.dispatch({
@@ -252,7 +249,9 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Smart Snippets Settings' });
+		new Setting(containerEl)
+			.setName('Smart Snippets settings')
+			.setHeading();
 
 		// Trigger key setting
 		new Setting(containerEl)
@@ -267,36 +266,25 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 				}));
 
 		// Show available variables
-		containerEl.createEl('h3', { text: 'Available Variables' });
-		const variablesDiv = containerEl.createDiv({ cls: 'snippet-variables' });
-		variablesDiv.innerHTML = `
-			<p>Use these variables in your templates:</p>
-			<ul>
-				<li><code>{{date}}</code> - Current date (YYYY-MM-DD)</li>
-				<li><code>{{time}}</code> - Current time (HH:MM AM/PM)</li>
-				<li><code>{{datetime}}</code> - Full date and time</li>
-				<li><code>{{timestamp}}</code> - Unix timestamp</li>
-				<li><code>{{year}}</code> - Current year</li>
-				<li><code>{{month}}</code> - Current month (01-12)</li>
-				<li><code>{{day}}</code> - Current day (01-31)</li>
-			</ul>
-		`;
+		new Setting(containerEl)
+			.setName('Available variables')
+			.setHeading();
+		
+		new Setting(containerEl)
+			.setName('Date and time variables')
+			.setDesc('{{date}} - Current date (YYYY-MM-DD) • {{time}} - Current time (HH:MM AM/PM) • {{datetime}} - Full date and time • {{timestamp}} - Unix timestamp • {{year}} - Current year • {{month}} - Current month (01-12) • {{day}} - Current day (01-31)');
 
 		// Default snippets section
-		containerEl.createEl('h3', { text: 'Built-in Snippets' });
-		containerEl.createEl('p', { 
-			text: 'These snippets are included by default. You can modify or delete them.',
-			cls: 'setting-item-description'
-		});
+		new Setting(containerEl)
+			.setName('Built-in snippets')
+			.setHeading();
+		
+		new Setting(containerEl)
+			.setDesc('These snippets are included by default. You can modify or delete them.');
 
 		// Display all snippets
 		this.plugin.settings.snippets.forEach((snippet, index) => {
-			const snippetContainer = containerEl.createDiv({ cls: 'snippet-item' });
-			snippetContainer.style.border = '1px solid var(--background-modifier-border)';
-			snippetContainer.style.padding = '15px';
-			snippetContainer.style.marginBottom = '15px';
-			snippetContainer.style.borderRadius = '5px';
-			snippetContainer.style.backgroundColor = 'var(--background-secondary)';
+			const snippetContainer = containerEl.createDiv({ cls: 'snippet-item-container' });
 
 			// Snippet header with trigger and description
 			new Setting(snippetContainer)
@@ -348,14 +336,15 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 						});
 					text.inputEl.rows = 8;
-					text.inputEl.style.width = '100%';
-					text.inputEl.style.fontFamily = 'monospace';
+					text.inputEl.addClass('snippet-template-textarea');
 					return text;
 				});
 		});
 
 		// Add new snippet section
-		containerEl.createEl('h3', { text: 'Add New Snippet' });
+		new Setting(containerEl)
+			.setName('Add new snippet')
+			.setHeading();
 
 		let newTrigger = '';
 		let newDescription = '';
@@ -389,8 +378,7 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 						newTemplate = value;
 					});
 				text.inputEl.rows = 8;
-				text.inputEl.style.width = '100%';
-				text.inputEl.style.fontFamily = 'monospace';
+				text.inputEl.addClass('snippet-template-textarea');
 				return text;
 			});
 
@@ -414,24 +402,20 @@ class SmartSnippetsSettingTab extends PluginSettingTab {
 				}));
 
 		// Usage instructions
-		containerEl.createEl('h3', { text: 'How to Use' });
-		const instructions = containerEl.createEl('div', { cls: 'snippet-instructions' });
-		instructions.innerHTML = `
-			<p><strong>Using Snippets:</strong></p>
-			<ol>
-				<li>Type the trigger character (default: <code>/</code>)</li>
-				<li>Type the snippet name (e.g., <code>meeting</code>)</li>
-				<li>Press <strong>Space</strong></li>
-				<li>The snippet expands into the template!</li>
-			</ol>
-			<p><strong>Example:</strong></p>
-			<p>Type <code>/meeting</code> and press Space → Full meeting template appears!</p>
-			<p><strong>Tips:</strong></p>
-			<ul>
-				<li>Use variables like {{date}} for dynamic content</li>
-				<li>Create snippets for frequently used formats</li>
-				<li>Combine with templates for powerful workflows</li>
-			</ul>
-		`;
+		new Setting(containerEl)
+			.setName('How to use')
+			.setHeading();
+		
+		new Setting(containerEl)
+			.setName('Using snippets')
+			.setDesc('1. Type the trigger character (default: /) • 2. Type the snippet name (e.g., meeting) • 3. Press Space • 4. The snippet expands into the template!');
+		
+		new Setting(containerEl)
+			.setName('Example')
+			.setDesc('Type /meeting and press Space → Full meeting template appears!');
+		
+		new Setting(containerEl)
+			.setName('Tips')
+			.setDesc('Use variables like {{date}} for dynamic content • Create snippets for frequently used formats • Combine with templates for powerful workflows');
 	}
 }

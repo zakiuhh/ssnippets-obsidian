@@ -164,10 +164,10 @@ var SmartSnippetsPlugin = class extends import_obsidian.Plugin {
       }
     });
     this.addSettingTab(new SmartSnippetsSettingTab(this.app, this));
-    console.log("Smart Snippets plugin loaded");
+    console.debug("Smart Snippets plugin loaded");
   }
   onunload() {
-    console.log("Smart Snippets plugin unloaded");
+    console.debug("Smart Snippets plugin unloaded");
   }
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
@@ -187,20 +187,19 @@ ${snippetList}`, 1e4);
     return expanded;
   }
   createSnippetExtension() {
-    const plugin = this;
     return import_view.EditorView.domEventHandlers({
-      keydown(event, view) {
+      keydown: (event, view) => {
         if (event.key === " ") {
           const selection = view.state.selection.main;
           const line = view.state.doc.lineAt(selection.head);
           const textBeforeCursor = line.text.slice(0, selection.head - line.from);
-          for (const snippet of plugin.settings.snippets) {
-            const trigger = plugin.settings.triggerKey + snippet.trigger;
+          for (const snippet of this.settings.snippets) {
+            const trigger = this.settings.triggerKey + snippet.trigger;
             if (textBeforeCursor.endsWith(trigger)) {
               event.preventDefault();
               const from = selection.head - trigger.length;
               const to = selection.head;
-              const expanded = plugin.expandSnippet(snippet.template);
+              const expanded = this.expandSnippet(snippet.template);
               view.dispatch({
                 changes: { from, to, insert: expanded }
               });
@@ -222,37 +221,17 @@ var SmartSnippetsSettingTab = class extends import_obsidian.PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Smart Snippets Settings" });
+    new import_obsidian.Setting(containerEl).setName("Smart Snippets settings").setHeading();
     new import_obsidian.Setting(containerEl).setName("Trigger character").setDesc("Character to start snippet triggers (default: /)").addText((text) => text.setPlaceholder("/").setValue(this.plugin.settings.triggerKey).onChange(async (value) => {
       this.plugin.settings.triggerKey = value || "/";
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h3", { text: "Available Variables" });
-    const variablesDiv = containerEl.createDiv({ cls: "snippet-variables" });
-    variablesDiv.innerHTML = `
-			<p>Use these variables in your templates:</p>
-			<ul>
-				<li><code>{{date}}</code> - Current date (YYYY-MM-DD)</li>
-				<li><code>{{time}}</code> - Current time (HH:MM AM/PM)</li>
-				<li><code>{{datetime}}</code> - Full date and time</li>
-				<li><code>{{timestamp}}</code> - Unix timestamp</li>
-				<li><code>{{year}}</code> - Current year</li>
-				<li><code>{{month}}</code> - Current month (01-12)</li>
-				<li><code>{{day}}</code> - Current day (01-31)</li>
-			</ul>
-		`;
-    containerEl.createEl("h3", { text: "Built-in Snippets" });
-    containerEl.createEl("p", {
-      text: "These snippets are included by default. You can modify or delete them.",
-      cls: "setting-item-description"
-    });
+    new import_obsidian.Setting(containerEl).setName("Available variables").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Date and time variables").setDesc("{{date}} - Current date (YYYY-MM-DD) \u2022 {{time}} - Current time (HH:MM AM/PM) \u2022 {{datetime}} - Full date and time \u2022 {{timestamp}} - Unix timestamp \u2022 {{year}} - Current year \u2022 {{month}} - Current month (01-12) \u2022 {{day}} - Current day (01-31)");
+    new import_obsidian.Setting(containerEl).setName("Built-in snippets").setHeading();
+    new import_obsidian.Setting(containerEl).setDesc("These snippets are included by default. You can modify or delete them.");
     this.plugin.settings.snippets.forEach((snippet, index) => {
-      const snippetContainer = containerEl.createDiv({ cls: "snippet-item" });
-      snippetContainer.style.border = "1px solid var(--background-modifier-border)";
-      snippetContainer.style.padding = "15px";
-      snippetContainer.style.marginBottom = "15px";
-      snippetContainer.style.borderRadius = "5px";
-      snippetContainer.style.backgroundColor = "var(--background-secondary)";
+      const snippetContainer = containerEl.createDiv({ cls: "snippet-item-container" });
       new import_obsidian.Setting(snippetContainer).setName(`${this.plugin.settings.triggerKey}${snippet.trigger}`).setDesc(snippet.description).addButton((button) => button.setButtonText("Delete").setWarning().onClick(async () => {
         this.plugin.settings.snippets.splice(index, 1);
         await this.plugin.saveSettings();
@@ -272,12 +251,11 @@ var SmartSnippetsSettingTab = class extends import_obsidian.PluginSettingTab {
           await this.plugin.saveSettings();
         });
         text.inputEl.rows = 8;
-        text.inputEl.style.width = "100%";
-        text.inputEl.style.fontFamily = "monospace";
+        text.inputEl.addClass("snippet-template-textarea");
         return text;
       });
     });
-    containerEl.createEl("h3", { text: "Add New Snippet" });
+    new import_obsidian.Setting(containerEl).setName("Add new snippet").setHeading();
     let newTrigger = "";
     let newDescription = "";
     let newTemplate = "";
@@ -292,8 +270,7 @@ var SmartSnippetsSettingTab = class extends import_obsidian.PluginSettingTab {
         newTemplate = value;
       });
       text.inputEl.rows = 8;
-      text.inputEl.style.width = "100%";
-      text.inputEl.style.fontFamily = "monospace";
+      text.inputEl.addClass("snippet-template-textarea");
       return text;
     });
     new import_obsidian.Setting(containerEl).addButton((button) => button.setButtonText("Add Snippet").setCta().onClick(async () => {
@@ -310,24 +287,9 @@ var SmartSnippetsSettingTab = class extends import_obsidian.PluginSettingTab {
         new import_obsidian.Notice("\u274C Please fill in at least trigger and template");
       }
     }));
-    containerEl.createEl("h3", { text: "How to Use" });
-    const instructions = containerEl.createEl("div", { cls: "snippet-instructions" });
-    instructions.innerHTML = `
-			<p><strong>Using Snippets:</strong></p>
-			<ol>
-				<li>Type the trigger character (default: <code>/</code>)</li>
-				<li>Type the snippet name (e.g., <code>meeting</code>)</li>
-				<li>Press <strong>Space</strong></li>
-				<li>The snippet expands into the template!</li>
-			</ol>
-			<p><strong>Example:</strong></p>
-			<p>Type <code>/meeting</code> and press Space \u2192 Full meeting template appears!</p>
-			<p><strong>Tips:</strong></p>
-			<ul>
-				<li>Use variables like {{date}} for dynamic content</li>
-				<li>Create snippets for frequently used formats</li>
-				<li>Combine with templates for powerful workflows</li>
-			</ul>
-		`;
+    new import_obsidian.Setting(containerEl).setName("How to use").setHeading();
+    new import_obsidian.Setting(containerEl).setName("Using snippets").setDesc("1. Type the trigger character (default: /) \u2022 2. Type the snippet name (e.g., meeting) \u2022 3. Press Space \u2022 4. The snippet expands into the template!");
+    new import_obsidian.Setting(containerEl).setName("Example").setDesc("Type /meeting and press Space \u2192 Full meeting template appears!");
+    new import_obsidian.Setting(containerEl).setName("Tips").setDesc("Use variables like {{date}} for dynamic content \u2022 Create snippets for frequently used formats \u2022 Combine with templates for powerful workflows");
   }
 };

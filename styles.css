@@ -1,65 +1,22 @@
 /* Smart Snippets Plugin Styles */
 
 /* Snippet item containers */
-.snippet-item {
+.snippet-item-container {
+	border: 1px solid var(--background-modifier-border);
+	padding: 15px;
+	margin-bottom: 15px;
+	border-radius: 5px;
+	background-color: var(--background-secondary);
 	transition: box-shadow 0.2s;
 }
 
-.snippet-item:hover {
+.snippet-item-container:hover {
 	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Variables section */
-.snippet-variables {
-	padding: 15px;
-	background-color: var(--background-secondary);
-	border-radius: 5px;
-	margin-bottom: 20px;
-}
-
-.snippet-variables code {
-	background-color: var(--background-primary);
-	padding: 2px 6px;
-	border-radius: 3px;
-	font-family: monospace;
-	font-size: 0.9em;
-}
-
-.snippet-variables ul {
-	margin-left: 20px;
-	margin-top: 10px;
-}
-
-.snippet-variables li {
-	margin: 5px 0;
-}
-
-/* Instructions section */
-.snippet-instructions {
-	padding: 15px;
-	background-color: var(--background-secondary);
-	border-radius: 5px;
-	margin-top: 10px;
-}
-
-.snippet-instructions code {
-	background-color: var(--background-primary);
-	padding: 2px 6px;
-	border-radius: 3px;
-	font-family: monospace;
-}
-
-.snippet-instructions ol,
-.snippet-instructions ul {
-	margin-left: 20px;
-	margin-top: 5px;
-}
-
-.snippet-instructions li {
-	margin: 5px 0;
-}
-
-/* Template textarea styling */
-textarea {
+/* Template textareas */
+.snippet-template-textarea {
+	width: 100%;
+	font-family: var(--font-monospace);
 	resize: vertical;
 }
